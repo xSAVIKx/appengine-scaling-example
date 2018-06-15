@@ -1,0 +1,67 @@
+buildscript {
+    repositories {
+        maven { url "https://plugins.gradle.org/m2/" }
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.google.cloud.tools:appengine-gradle-plugin:1.3.4'
+    }
+}
+import com.google.cloud.tools.gradle.appengine.standard.AppEngineStandardPlugin
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'war'
+
+project.pluginManager.apply AppEngineStandardPlugin
+
+group 'google.appengine'
+version '1.0-SNAPSHOT'
+
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "com.google.appengine:appengine-api-1.0-sdk:1.9.64"
+    compile "com.google.appengine:appengine-api-labs:1.9.64"
+    providedCompile "javax.servlet:servlet-api:2.5"
+}
+
+appengine {
+    run {
+        port = 8080
+        jvmFlags = [
+                '-XX:MaxPermSize=256M',
+                '-Xdebug',
+                '-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5008',
+                '-Dappengine.fullscan.seconds=5'
+        ]
+        // configure the app to point to the right service directories
+        services = [
+                getExplodedAppDir(project)
+        ]
+    }
+    deploy {
+        project = 'scaling-problem-example'
+        version = '1'
+    }
+}
+
+// helper method to obtain correct directory and set up dependencies
+def getExplodedAppDir(final Project p) {
+    // if not 'this' module, then do some setup.
+    if (p != project) {
+        // make sure we evaluate other modules first so we get the right value
+        evaluationDependsOn(p.path)
+        // make sure we build "run" depends on the other modules exploding wars
+        project.tasks.appengineRun.dependsOn p.tasks.explodeWar
+    }
+    return p.tasks.explodeWar.explodedAppDirectory
+}
